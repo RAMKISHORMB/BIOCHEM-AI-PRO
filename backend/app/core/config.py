@@ -1,5 +1,6 @@
 import os
 from pydantic_settings import BaseSettings
+from pydantic import model_validator
 from typing import Optional
 
 class Settings(BaseSettings):
@@ -8,14 +9,27 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     
     # Security & Initial Provisioning
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "biochem-ai-super-secret-key-production-grade-2026-xyz-security-seed")
+    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "biochem-ai-development-testing-key-not-for-production-hs256")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
-    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     
-    # Initial Administrator Credentials (Configured via Environment Variables)
+    # Initial Administrator Credentials (Exclusively provisioned via environment variables)
     ADMIN_EMAIL: Optional[str] = os.getenv("ADMIN_EMAIL")
     ADMIN_PASSWORD: Optional[str] = os.getenv("ADMIN_PASSWORD")
+
+    @model_validator(mode="after")
+    def validate_production_security(self):
+        """Enforces that production environments have a secure, non-fallback SECRET_KEY."""
+        if self.ENVIRONMENT.lower() in ("production", "prod"):
+            sec = self.SECRET_KEY
+            if not sec or len(sec.strip()) < 32 or "security-seed" in sec or "development-testing-key" in sec:
+                raise ValueError(
+                    "CRITICAL SECURITY CONFIGURATION ERROR: SECRET_KEY environment variable "
+                    "must be explicitly defined in production with a strong, cryptographically "
+                    "secure random value (minimum 32 characters). Insecure fallback is strictly prohibited."
+                )
+        return self
     
     # Database: Defaults to PostgreSQL if configured, or local persistent SQLite if Postgres not running
     DATABASE_URL: str = os.getenv(
@@ -33,13 +47,28 @@ class Settings(BaseSettings):
     MODEL_REGISTRY_DIR: str = os.getenv("MODEL_REGISTRY_DIR", "./data/models")
     REPORT_OUTPUT_DIR: str = os.getenv("REPORT_OUTPUT_DIR", "./data/reports")
     
-    # CORS
+    # CORS Origins
+    @property
+    def cors_origins(self) -> list[str]:
+        origins = [
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ]
+        env_origins = os.getenv("BACKEND_CORS_ORIGINS") or os.getenv("CORS_ORIGINS")
+        if env_origins:
+            parsed = [o.strip() for o in env_origins.split(",") if o.strip() and o.strip() != "*"]
+            for o in parsed:
+                if o not in origins:
+                    origins.append(o)
+        return origins
+
     BACKEND_CORS_ORIGINS: list[str] = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
-        "*"
     ]
 
     class Config:

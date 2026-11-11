@@ -8,7 +8,7 @@ export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState('CLINICIAN');
+  const [role, setRole] = useState('USER');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -22,7 +22,7 @@ export const Login: React.FC = () => {
 
     try {
       if (isRegistering) {
-        await register(email, password, fullName, role);
+        await register(email, password, fullName, 'USER');
         await login(email, password);
       } else {
         await login(email, password);
@@ -150,20 +150,9 @@ export const Login: React.FC = () => {
             </div>
 
             {isRegistering && (
-              <div>
-                <label className="block text-xs font-medium text-[#172B4D] mb-1">
-                  Clinical Role Assignment
-                </label>
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-[#E5EAF1] rounded-lg text-xs text-[#172B4D] focus:border-[#2563EB] focus:outline-none"
-                >
-                  <option value="CLINICIAN">Clinician / Attending Physician</option>
-                  <option value="BIOCHEMIST">Clinical Biochemist / Pathologist</option>
-                  <option value="TECHNICIAN">Medical Laboratory Technician</option>
-                  <option value="ADMIN">System Administrator</option>
-                </select>
+              <div className="p-3 bg-[#F0FDF4] border border-[#BBF7D0] rounded-lg text-[11px] text-[#166534] flex items-center gap-2">
+                <Shield className="w-4 h-4 flex-shrink-0 text-[#16A34A]" />
+                <span>Standard User Account. Clinical laboratory roles (Biochemist, Clinician, Technician) are assigned by system administrators.</span>
               </div>
             )}
 

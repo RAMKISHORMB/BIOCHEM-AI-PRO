@@ -2,11 +2,17 @@ from fastapi import status
 from app.services.reference_data_seeder import seed_standard_biochemistry_library
 
 def get_auth_token(client):
+    res = client.post("/api/v1/auth/login", json={
+        "email": "admin@biochem.ai",
+        "password": "Password123!"
+    })
+    if res.status_code == 200:
+        return res.json()["access_token"]
     client.post("/api/v1/auth/register", json={
         "email": "chief.pathologist@biochem.ai",
         "password": "Password123!",
         "full_name": "Chief Pathologist",
-        "role": "ADMIN"
+        "role": "CLINICIAN"
     })
     res = client.post("/api/v1/auth/login", json={
         "email": "chief.pathologist@biochem.ai",

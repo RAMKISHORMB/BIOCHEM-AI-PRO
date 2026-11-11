@@ -38,7 +38,7 @@ export const UserManagement: React.FC = () => {
     e.preventDefault();
     setError(null);
     try {
-      await api.post('/auth/register', {
+      await api.post('/auth/users', {
         email,
         password,
         full_name: fullName,

@@ -32,19 +32,20 @@ from app.api.v1 import (
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("biochem_ai")
 
-def seed_initial_data():
+def seed_initial_data(target_session=None):
     """Seed initial administrator and standard traceable clinical biochemistry reference library."""
-    db = SessionLocal()
+    db = target_session or SessionLocal()
     try:
-        # 1. Seed initial administrator only if explicitly configured via environment variables
-        admin_count = db.query(User).count()
+        # 1. Provision initial administrator ONLY if explicitly configured via environment variables
+        admin_count = db.query(User).filter(User.role == UserRole.ADMIN.value).count()
         if admin_count == 0:
-            admin_email = settings.ADMIN_EMAIL
-            admin_password = settings.ADMIN_PASSWORD
+            admin_email = settings.ADMIN_EMAIL.strip().lower() if settings.ADMIN_EMAIL else None
+            admin_password = settings.ADMIN_PASSWORD.strip() if settings.ADMIN_PASSWORD else None
+
             if admin_email and admin_password:
-                logger.info(f"Initializing configured administrator account ({admin_email.strip()})...")
+                logger.info(f"Provisioning configured initial administrator ({admin_email})...")
                 admin_user = User(
-                    email=admin_email.strip().lower(),
+                    email=admin_email,
                     hashed_password=get_password_hash(admin_password),
                     full_name="Chief Medical Biochemist",
                     role=UserRole.ADMIN.value,
@@ -54,9 +55,9 @@ def seed_initial_data():
                 db.commit()
                 logger.info("Configured administrator account seeded successfully.")
             else:
-                logger.info(
-                    "No initial administrator seeded (ADMIN_EMAIL and/or ADMIN_PASSWORD environment variables not provided). "
-                    "The first user who registers through /auth/register will automatically be assigned the ADMIN role."
+                logger.warning(
+                    "Initial ADMIN account not provisioned: ADMIN_EMAIL and/or ADMIN_PASSWORD environment variables "
+                    "are missing. Failing safely without creating an administrator."
                 )
         
         # 2. Seed standard clinical biochemistry library if empty
@@ -65,7 +66,8 @@ def seed_initial_data():
         logger.error(f"Error seeding initial data: {e}")
         db.rollback()
     finally:
-        db.close()
+        if target_session is None:
+            db.close()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -87,10 +89,11 @@ app = FastAPI(
     openapi_url="/openapi.json"
 )
 
-# Set up CORS middleware
+# Set up CORS middleware supporting local development and deployed frontend domains
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.BACKEND_CORS_ORIGINS,
+    allow_origins=settings.cors_origins,
+    allow_origin_regex=r"^https://.*\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

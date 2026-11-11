@@ -204,15 +204,9 @@ def test_target_analysis_api_endpoint(client):
     Verifies the new GET /api/v1/ml/datasets/{id}/target-analysis endpoint
     returns full data-driven distribution, detection, and override capabilities.
     """
-    # Register/login
-    client.post("/api/v1/auth/register", json={
-        "email": "target.analyst@biochem.ai",
-        "password": "Password123!",
-        "full_name": "Target Analyst",
-        "role": "ADMIN"
-    })
+    # Login with provisioned admin
     login_res = client.post("/api/v1/auth/login", json={
-        "email": "target.analyst@biochem.ai",
+        "email": "admin@biochem.ai",
         "password": "Password123!"
     })
     token = login_res.json()["access_token"]

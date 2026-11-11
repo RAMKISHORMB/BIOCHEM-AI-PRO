@@ -17,7 +17,12 @@ def register_user(
     request: Request,
     db: Session = Depends(get_db)
 ):
-    """Register a new user account. If this is the very first user, they automatically become ADMIN."""
+    """Register a new user account.
+    
+    Normal self-registration strictly creates standard USER accounts only.
+    Automatic first-user ADMIN promotion has been removed.
+    Initial administrators are provisioned exclusively via ADMIN_EMAIL and ADMIN_PASSWORD.
+    """
     existing_user = db.query(User).filter(User.email == payload.email.lower()).first()
     if existing_user:
         raise HTTPException(
@@ -25,9 +30,8 @@ def register_user(
             detail="A user with this email address already exists"
         )
     
-    # Check total users count; if 0, grant ADMIN privileges to initial system architect
-    total_users = db.query(User).count()
-    assigned_role = UserRole.ADMIN.value if total_users == 0 else payload.role.value
+    # Normal self-registration strictly creates standard USER accounts
+    assigned_role = UserRole.USER.value
 
     new_user = User(
         email=payload.email.lower(),
@@ -131,6 +135,46 @@ def list_users(
 ):
     """List all user accounts (Administrator privilege required)."""
     return db.query(User).order_by(User.created_at.desc()).all()
+
+@router.post("/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+def admin_create_user(
+    payload: UserCreate,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role([UserRole.ADMIN]))
+):
+    """Administrator-provisioned user creation with role assignment."""
+    existing_user = db.query(User).filter(User.email == payload.email.lower()).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A user with this email address already exists"
+        )
+    
+    new_user = User(
+        email=payload.email.lower(),
+        hashed_password=get_password_hash(payload.password),
+        full_name=payload.full_name,
+        role=payload.role.value,
+        is_active=True
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    client_ip = request.client.host if request.client else None
+    log_audit_event(
+        db=db,
+        action="ADMIN_CREATE_USER",
+        entity_name="USER",
+        user_id=current_user.id,
+        user_email=current_user.email,
+        entity_id=new_user.id,
+        details={"role": new_user.role, "full_name": new_user.full_name},
+        ip_address=client_ip
+    )
+
+    return new_user
 
 @router.patch("/users/{user_id}/status", response_model=UserResponse)
 def update_user_status(

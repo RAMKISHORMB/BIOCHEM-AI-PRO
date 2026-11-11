@@ -52,6 +52,8 @@ export const Navbar: React.FC = () => {
         return 'bg-[#E0F2FE] text-[#0369A1] border-[#BAE6FD]';
       case 'TECHNICIAN':
         return 'bg-[#EAF2FF] text-[#2563EB] border-[#BFDBFE]';
+      case 'USER':
+        return 'bg-[#F1F5F9] text-[#475569] border-[#CBD5E1]';
       case 'CLINICIAN':
       default:
         return 'bg-[#DCFCE7] text-[#15803D] border-[#BBF7D0]';

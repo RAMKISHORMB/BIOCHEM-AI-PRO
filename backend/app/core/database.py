@@ -2,15 +2,28 @@ from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from app.core.config import settings
 
+def normalize_database_url(url: str) -> str:
+    """Normalize PostgreSQL dialect scheme for SQLAlchemy 2.0 and psycopg2 compatibility."""
+    if url.startswith("postgres://"):
+        return url.replace("postgres://", "postgresql+psycopg2://", 1)
+    if url.startswith("postgresql://") and not url.startswith("postgresql+psycopg2://"):
+        return url.replace("postgresql://", "postgresql+psycopg2://", 1)
+    return url
+
 # Engine configuration with dialect-specific connection arguments
-is_sqlite = settings.DATABASE_URL.startswith("sqlite")
+normalized_db_url = normalize_database_url(settings.DATABASE_URL)
+is_sqlite = normalized_db_url.startswith("sqlite")
 
 connect_args = {"check_same_thread": False} if is_sqlite else {}
+pool_kwargs = {"pool_pre_ping": True}
+if not is_sqlite:
+    pool_kwargs["pool_size"] = 10
+    pool_kwargs["max_overflow"] = 20
 
 engine = create_engine(
-    settings.DATABASE_URL,
+    normalized_db_url,
     connect_args=connect_args,
-    pool_pre_ping=True
+    **pool_kwargs
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

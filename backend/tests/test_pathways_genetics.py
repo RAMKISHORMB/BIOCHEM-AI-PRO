@@ -1,11 +1,17 @@
 from fastapi import status
 
 def get_auth_token(client):
+    res = client.post("/api/v1/auth/login", json={
+        "email": "admin@biochem.ai",
+        "password": "Password123!"
+    })
+    if res.status_code == 200:
+        return res.json()["access_token"]
     client.post("/api/v1/auth/register", json={
         "email": "geneticist@biochem.ai",
         "password": "Password123!",
         "full_name": "Dr. Rosalind Franklin",
-        "role": "ADMIN"
+        "role": "CLINICIAN"
     })
     res = client.post("/api/v1/auth/login", json={
         "email": "geneticist@biochem.ai",
